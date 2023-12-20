@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Building Detection and Solar Power Estimation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+
+        #drop-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px auto;
+            max-width: 600px;
+        }
+
+        #preview {
+            max-width: 100%;
+            max-height: 300px;
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Building Detection and Solar Power Estimation</h1>
+
+    <div id="drop-area">
+        <p>Drag & Drop an image file here or click to browse.</p>
+        <input type="file" id="file-input" accept="image/*" style="display: none;">
+        <img id="preview" alt="Preview" style="max-width: 100%; max-height: 300px; display: none;">
+        <p id="result-message" style="margin-top: 20px;"></p>
+    </div>
+
+    <script>
+        const dropArea = document.getElementById("drop-area");
+        const fileInput = document.getElementById("file-input");
+        const previewImage = document.getElementById("preview");
+        const resultMessage = document.getElementById("result-message");
+
+        dropArea.addEventListener("dragover", (event) => {
+            event.preventDefault();
+            dropArea.classList.add("drag-over");
+        });
+
+        dropArea.addEventListener("dragleave", () => {
+            dropArea.classList.remove("drag-over");
+        });
+
+        dropArea.addEventListener("drop", (event) => {
+            event.preventDefault();
+            dropArea.classList.remove("drag-over");
+            handleFiles(event.dataTransfer.files);
+        });
+
+        fileInput.addEventListener("change", () => {
+            handleFiles(fileInput.files);
+        });
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith("image/")) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        previewImage.src = e.target.result;
+                        previewImage.style.display = "block";
+
+                        // Send the image to Flask backend using Fetch API
+                        const formData = new FormData();
+                        formData.append("image", file);
+
+                        fetch("/detect_buildings", {
+                            method: "POST",
+                            body: formData,
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            // Display the result message
+                            resultMessage.innerHTML = `
+                                Number of buildings: ${data.number_of_buildings}<br>
+                                Total Rooftop Area: ${data.total_rooftop_area} square units<br>
+                                Estimated Energy Production: ${data.estimated_energy_production} kWh/day
+                            `;
+                        })
+                        .catch(error => {
+                            console.error("Error:", error);
+                            resultMessage.innerHTML = "An error occurred while processing the image.";
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    resultMessage.innerHTML = "Please select a valid image file.";
+                }
+            }
+        }
+    </script>
+</body>
+</html>
